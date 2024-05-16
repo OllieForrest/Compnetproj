@@ -1,6 +1,6 @@
-CC = gcc
-CFLAGS = -Wall -pthread -g
-LDFLAGS = -ljson-c
+CC=gcc
+CFLAGS=-Wall -pthread -g -I/opt/homebrew/Cellar/json-c/0.17/include
+LDFLAGS=-pthread
 
 all: station-server
 

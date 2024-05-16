@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bus Journey Planner</title>
+</head>
+<body>
+    <h1>Bus Journey Planner</h1>
+    <form id="journeyForm">
+        <label for="start_station">Start Station:</label>
+        <select id="start_station" name="start_station">
+            <option value="StationA:4001">StationA</option>
+            <option value="TerminalB:4003">TerminalB</option>
+            <option value="JunctionC:4005">JunctionC</option>
+            <option value="BusportD:4007">BusportD</option>
+            <option value="StationE:4009">StationE</option>
+            <option value="TerminalF:4011">TerminalF</option>
+        </select>
+        <br><br>
+        <label for="destination_station">Destination Station:</label>
+        <select id="destination_station" name="destination_station">
+            <option value="StationA">StationA</option>
+            <option value="TerminalB">TerminalB</option>
+            <option value="JunctionC">JunctionC</option>
+            <option value="BusportD">BusportD</option>
+            <option value="StationE">StationE</option>
+            <option value="TerminalF">TerminalF</option>
+        </select>
+        <br><br>
+        <label for="start_time">Start Time (HH:MM):</label>
+        <input type="time" id="start_time" name="start_time" required>
+        <br><br>
+        <button type="submit">Plan Journey</button>
+    </form>
+
+    <div id="response"></div>
+
+    <script>
+        document.getElementById('journeyForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const startStationSelect = document.getElementById('start_station');
+            const startStation = startStationSelect.value.split(':')[0];
+            const port = startStationSelect.value.split(':')[1];
+            const destinationStation = document.getElementById('destination_station').value;
+            const startTime = document.getElementById('start_time').value;
+
+            const url = `http://localhost:${port}/?start_time=${startTime}&departure_stop=${startStation}&destination_station=${destinationStation}`;
+
+            fetch(url)
+                .then(response => response.text())
+                .then(data => {
+                    document.getElementById('response').innerText = data;
+                })
+                .catch(error => {
+                    document.getElementById('response').innerText = 'Error: ' + error;
+                });
+        });
+    </script>
+</body>
+</html>

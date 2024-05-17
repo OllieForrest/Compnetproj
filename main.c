@@ -6,6 +6,10 @@
 #include <pthread.h>
 #include "server.h"
 
+extern BusSchedule *schedule_array;
+extern int schedule_count;
+extern int schedule_capacity;
+
 int create_and_bind_socket(int port, int type) {
     int sockfd;
     struct sockaddr_in addr;
@@ -69,35 +73,33 @@ int main(int argc, char *argv[]) {
         printf("Neighbour %d: %s:%d\n", i + 1, neighbors[i].ip, neighbors[i].udp_port);
     }
 
-    // Read the timetable for the station
     read_timetable(station_name);
 
-    int tcp_sock, udp_sock;
-
-    // TCP socket for HTTP requests
-    tcp_sock = create_and_bind_socket(webPort, SOCK_STREAM);
-    if (listen(tcp_sock, 3) < 0) {
+    int tcp_sock = create_and_bind_socket(webPort, SOCK_STREAM);
+    if (listen(tcp_sock, 10) < 0) {
         perror("listen");
+        close(tcp_sock);
         exit(EXIT_FAILURE);
     }
 
-    // UDP socket for inter-station communication
-    udp_sock = create_and_bind_socket(udpPort, SOCK_DGRAM);
-
-    printf("Server is running on TCP port %d and UDP port %d\n", webPort, udpPort);
-
-    ThreadArgs tcp_args = {tcp_sock, "", neighbors, neighbor_count};
-    ThreadArgs udp_args = {udp_sock, "", neighbors, neighbor_count};
-    strncpy(tcp_args.station_name, station_name, sizeof(tcp_args.station_name) - 1);
-    strncpy(udp_args.station_name, station_name, sizeof(udp_args.station_name) - 1);
+    int udp_sock = create_and_bind_socket(udpPort, SOCK_DGRAM);
 
     pthread_t tcp_thread, udp_thread;
+    pthread_mutex_t mutex;
+    pthread_mutex_init(&mutex, NULL);
+
+    ThreadArgs tcp_args = {tcp_sock, station_name, neighbors, neighbor_count, schedule_array, schedule_count, &mutex};
+    UdpThreadArgs udp_args = {udp_sock, station_name, neighbors, neighbor_count, &mutex};
+
     pthread_create(&tcp_thread, NULL, tcp_thread_func, &tcp_args);
     pthread_create(&udp_thread, NULL, udp_thread_func, &udp_args);
 
     pthread_join(tcp_thread, NULL);
     pthread_join(udp_thread, NULL);
 
+    pthread_mutex_destroy(&mutex);
+    close(tcp_sock);
+    close(udp_sock);
     free(neighbors);
     free(schedule_array);
 

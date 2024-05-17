@@ -5,7 +5,7 @@
 
 BusSchedule *schedule_array = NULL;
 int schedule_count = 0;
-int schedule_capacity = INITIAL_SCHEDULE_CAPACITY;
+int schedule_capacity = 20;
 
 void printSchedule(const BusSchedule* schedule) {
     printf("Departure: %s, Bus No: %s, Departure Stop: %s, Arrival: %s, Destination: %s\n",

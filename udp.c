@@ -28,16 +28,17 @@ void handle_udp(int udp_sock, const char *station_name, Neighbor *neighbors, int
         } else if (strncmp(buffer, PROBE_RESPONSE, strlen(PROBE_RESPONSE)) == 0) {
             // This is a probe response
             const char *response_station_name = buffer + strlen(PROBE_RESPONSE);
-            
+
             // Find the neighbor that matches the sender's port
             for (int i = 0; i < neighbor_count; i++) {
                 if (cliaddr.sin_port == htons(neighbors[i].udp_port)) {
                     pthread_mutex_lock(mutex);
                     strncpy(neighbors[i].station_name, response_station_name, sizeof(neighbors[i].station_name) - 1);
                     neighbors[i].station_name[sizeof(neighbors[i].station_name) - 1] = '\0';
+                    neighbors[i].response_received = 1; // Set the response received flag
                     pthread_mutex_unlock(mutex);
-                    printf("Received probe response from %s:%d - Station Name: %s\n",
-                           neighbors[i].ip, neighbors[i].udp_port, neighbors[i].station_name); // Debugging output
+                    printf("Received probe response from port %d - Station Name: %s\n",
+                           ntohs(cliaddr.sin_port), neighbors[i].station_name); // Debugging output
                     break;
                 }
             }

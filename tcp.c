@@ -9,49 +9,8 @@
 #include <json-c/json.h>
 
 #define BUF_SIZE 1024
-#define PROBE_MSG "PROBE:"
-#define TIMEOUT 5
-
-void send_probe(const char *ip, int port, const char *station_name) {
-    int sockfd;
-    struct sockaddr_in servaddr;
-    char probe_msg[BUF_SIZE];
-    char target_ip[INET_ADDRSTRLEN];
-
-    // Convert "localhost" to "127.0.0.1"
-    if (strcmp(ip, "localhost") == 0) {
-        strcpy(target_ip, "127.0.0.1");
-    } else {
-        strcpy(target_ip, ip);
-    }
-
-    snprintf(probe_msg, sizeof(probe_msg), "%s%s", PROBE_MSG, station_name);
-
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        perror("socket creation failed");
-        return;
-    }
-
-    memset(&servaddr, 0, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(port);
-    inet_pton(AF_INET, target_ip, &servaddr.sin_addr);
-
-    sendto(sockfd, probe_msg, strlen(probe_msg), 0, (const struct sockaddr *)&servaddr, sizeof(servaddr));
-    close(sockfd);
-}
-
-void probe_neighbors(Neighbor *neighbors, int neighbor_count, const char *station_name) {
-    for (int i = 0; i < neighbor_count; i++) {
-        send_probe(neighbors[i].ip, neighbors[i].udp_port, station_name);
-        printf("Sent probe to %s:%d\n", neighbors[i].ip, neighbors[i].udp_port); // Debugging output
-    }
-}
 
 void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int neighbor_count, BusSchedule *schedule_array, int schedule_count, pthread_mutex_t *mutex) {
-    // Probe neighbors at the start of the TCP handling
-    probe_neighbors(neighbors, neighbor_count, station_name);
-
     char buffer[BUF_SIZE];
     int new_socket;
     struct sockaddr_in client_addr;

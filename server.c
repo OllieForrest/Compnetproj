@@ -3,14 +3,15 @@
 #include <string.h>
 #include "server.h"
 
+#define BUFFER_SIZE 1024
+
 BusSchedule *schedule_array = NULL;
 int schedule_count = 0;
-int schedule_capacity = 20;
+int schedule_capacity = INITIAL_SCHEDULE_CAPACITY;
 
 void printSchedule(const BusSchedule* schedule) {
-    printf("Departure: %s, Bus No: %s, Departure Stop: %s, Arrival: %s, Destination: %s\n",
+    printf("Departure: %s, Departure Stop: %s, Arrival: %s, Destination: %s\n",
            schedule->departure_time,
-           schedule->bus_number,
            schedule->departure_stop,
            schedule->arrival_time,
            schedule->destination_station);
@@ -64,11 +65,6 @@ void read_timetable(const char *station_name) {
         if (token == NULL) { continue; }
         strncpy(schedule.departure_time, token, sizeof(schedule.departure_time) - 1);
         schedule.departure_time[sizeof(schedule.departure_time) - 1] = '\0';
-
-        token = strtok(NULL, ",");
-        if (token == NULL) { continue; }
-        strncpy(schedule.bus_number, token, sizeof(schedule.bus_number) - 1);
-        schedule.bus_number[sizeof(schedule.bus_number) - 1] = '\0';
 
         token = strtok(NULL, ",");
         if (token == NULL) { continue; }

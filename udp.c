@@ -14,7 +14,6 @@ void handle_udp(int udp_sock, const char *station_name) {
     while ((msg_len = recvfrom(udp_sock, buffer, BUF_SIZE, 0, (struct sockaddr *)&cliaddr, &len)) > 0) {
         buffer[msg_len] = '\0';
 
-        // Respond with a simple message
         const char *response = "UDP connection active.";
         sendto(udp_sock, response, strlen(response), 0, (struct sockaddr *)&cliaddr, len);
     }

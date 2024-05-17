@@ -3,8 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include "server.h"
 #include <uuid/uuid.h>
+#include <json-c/json.h>
+#include "server.h"
 
 void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int neighbor_count, BusSchedule *schedule_array, int schedule_count) {
     char buffer[BUF_SIZE];
@@ -18,42 +19,32 @@ void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int
         memset(buffer, 0, BUF_SIZE);
         read(new_socket, buffer, BUF_SIZE);
 
-        // Parse the HTTP request to get start_time, departure_stop, and destination_station
         char start_time[6], departure_stop[50], destination_station[50];
         sscanf(buffer, "GET /?start_time=%5[^&]&departure_stop=%49[^&]&destination_station=%49[^ ]", start_time, departure_stop, destination_station);
 
-        // Generate a random UUID for the id field
         uuid_generate_random(binuuid);
         uuid_unparse_lower(binuuid, uuid_str);
 
-        // Debugging: Print parsed request details
         printf("Parsed HTTP Request: start_time=%s, departure_stop=%s, destination_station=%s\n", start_time, departure_stop, destination_station);
-
-        // Debugging: Print neighbor details
-        printf("Number of Neighbors: %d\n", neighbor_count);
-        for (int i = 0; i < neighbor_count; i++) {
-            printf("Neighbor %d: IP=%s, Port=%d, Station Name=%s\n", i + 1, neighbors[i].ip, neighbors[i].udp_port, neighbors[i].station_name);
-        }
 
         json_object *jobj = json_object_new_object();
         json_object_object_add(jobj, "id", json_object_new_string(uuid_str));
-        json_object_object_add(jobj, "source", json_object_new_string(departure_stop));
+        json_object_object_add(jobj, "origin", json_object_new_string(departure_stop));
         json_object_object_add(jobj, "destination", json_object_new_string(destination_station));
-        json_object_object_add(jobj, "returning", json_object_new_boolean(0));
+        json_object_object_add(jobj, "delivered", json_object_new_boolean(0));
         json_object *route_array = json_object_new_array();
-        json_object_object_add(jobj, "route", route_array);
 
-        // Check if destination is in the schedule (//CHECKS IF DIRECT NEIGHBOUR)
         BusSchedule *selected_schedule = NULL;
         for (int i = 0; i < schedule_count; i++) {
-            if (strcmp(schedule_array[i].destination_station, destination_station) == 0 && strcmp(schedule_array[i].departure_time, start_time) > 0) {
-                selected_schedule = &schedule_array[i];
-                break;
+            if (strcmp(schedule_array[i].departure_stop, departure_stop) == 0 &&
+                strcmp(schedule_array[i].destination_station, destination_station) == 0 &&
+                strcmp(schedule_array[i].departure_time, start_time) >= 0) {
+                if (selected_schedule == NULL || strcmp(schedule_array[i].departure_time, selected_schedule->departure_time) < 0) {
+                    selected_schedule = &schedule_array[i];
+                }
             }
         }
 
-        
-        // If found, it means the destination is directly reachable
         if (selected_schedule != NULL) {
             json_object *journey_obj = json_object_new_object();
             json_object_object_add(journey_obj, "depart_location", json_object_new_string(selected_schedule->departure_stop));
@@ -63,20 +54,24 @@ void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int
             json_object_array_add(route_array, journey_obj);
 
             json_object_object_add(jobj, "delivered", json_object_new_boolean(1));
-            
-        } else {//WHAT HAPPENS IF NOT DIRECT NEIGHBORS
-            json_object_object_add(jobj, "delivered", json_object_new_boolean(0));
-            //UDP
-            
+        } else {
+            json_object *neighbors_array = json_object_new_array();
+            for (int i = 0; i < neighbor_count; i++) {
+                json_object *neighbor_obj = json_object_new_object();
+                json_object_object_add(neighbor_obj, "name", json_object_new_string(neighbors[i].station_name));
+                json_object_object_add(neighbor_obj, "ip", json_object_new_string(neighbors[i].ip));
+                json_object_object_add(neighbor_obj, "port", json_object_new_int(neighbors[i].udp_port));
+                json_object_array_add(neighbors_array, neighbor_obj);
+            }
+            json_object_object_add(jobj, "neighbors", neighbors_array);
         }
 
-        // Convert JSON object to string
+        json_object_object_add(jobj, "route", route_array);
+
         const char *json_str = json_object_to_json_string(jobj);
 
-        // Debugging output to print the JSON packet
         printf("Generated JSON: %s\n", json_str);
 
-        // Send the JSON string as an HTTP response
         char http_response[BUF_SIZE];
         snprintf(http_response, sizeof(http_response),
                  "HTTP/1.1 200 OK\r\n"
@@ -88,7 +83,6 @@ void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int
 
         send(new_socket, http_response, strlen(http_response), 0);
 
-        // Clean up
         json_object_put(jobj);
         close(new_socket);
     }
@@ -96,6 +90,5 @@ void handle_tcp(int tcp_sock, const char *station_name, Neighbor *neighbors, int
 
 void *tcp_thread_func(void *arg) {
     ThreadArgs *args = (ThreadArgs *)arg;
-    handle_tcp(args->socket, args->station_name, args->neighbors, args->neighbor_count, schedule_array, schedule_count);
-    return NULL;
+    handle_tcp(args->socket, arg
 }
